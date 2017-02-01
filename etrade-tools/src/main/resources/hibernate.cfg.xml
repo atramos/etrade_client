@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?> 
+<!DOCTYPE hibernate-config PUBLIC "-//Hibernate/Hibernate Config DTD 3.1//EN" "http://www.hibernate.org/dtd/hibernate-config-3.1.dtd">
+<hibernate-config>
+	<session-factory> <!-- Database connection settings -->
+		<property name="connection.driver_class">org.apache.derby.jdbc.EmbeddedDriver</property>
+		<property name="connection.url">jdbc:derby:;databaseName=etrade;create=true</property>
+		<property name="connection_userid">root</property>
+		<property name="connection_pwd">root</property> 
+		
+		<!-- JDBC connection pool (use the built-in) -->
+		<property name="connection_pool_size">true</property> 
+		<property name="dialect">org.hibernate.DerbyDialect</property> 
+		
+		<!-- Disable the second-level cache -->
+		<property name="cache.provider_class">org.hibernate.NoCacheProvider</property>
+		 
+		<!-- Echo all executed SQL to stdout -->
+		<property name="show_sql">1</property> 
+		
+		<!-- Drop and re-create the database schema on startup -->
+		<property name="hbmdl.auto">update</property> 
+		
+		<!-- Names the annotated entity class -->
+		<mapping class="com.etrade.etws.market.OptionChainPair" />
+	</session-factory>
+</hibernate-configuration>
+
