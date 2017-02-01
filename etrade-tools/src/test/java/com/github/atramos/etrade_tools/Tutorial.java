@@ -1,105 +1,94 @@
 package com.github.atramos.etrade_tools;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import com.etrade.etws.account.Account;
 import com.etrade.etws.account.AccountListResponse;
+import com.etrade.etws.market.DetailFlag;
+import com.etrade.etws.market.OptionChainPair;
+import com.etrade.etws.market.OptionChainRequest;
+import com.etrade.etws.market.OptionChainResponse;
+import com.etrade.etws.market.QuoteData;
+import com.etrade.etws.market.QuoteResponse;
 import com.etrade.etws.oauth.sdk.client.IOAuthClient;
 import com.etrade.etws.oauth.sdk.client.OAuthClientImpl;
 import com.etrade.etws.oauth.sdk.common.Token;
 import com.etrade.etws.sdk.client.AccountsClient;
 import com.etrade.etws.sdk.client.ClientRequest;
 import com.etrade.etws.sdk.client.Environment;
+import com.etrade.etws.sdk.client.MarketClient;
 import com.etrade.etws.sdk.common.ETWSException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 
 /**
- * Tutorial code copied from https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Code-Tutorial
+ * E-Trade API tutorial code, heavily debugged, refactored and expanded.
+ * Original code from:
+ * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Code-Tutorial
  * 
- * TODO:
- * - Configure sandbox tokens
- * - Test and debug the code
- * - Implement the getQuote() and getOptionChain() methods.
- * 
- * Sandbox tokens are available here:
- * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Documentation-DeveloperGuides-Authorization
+ * Sandbox tokens:
+ * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Documentation-
+ * DeveloperGuides-Authorization
  * 
  * @author atram
  *
  */
 public class Tutorial {
-	// Variables
-	public IOAuthClient client = null;
+	private IOAuthClient oauth_client = OAuthClientImpl.getInstance();
 
-	public ClientRequest request = null;
+	private String oauth_consumer_key = System.getenv("CONSUMER_KEY");
 
-	public Token token = null;
+	private String oauth_consumer_secret = System.getenv("CONSUMER_SECRET");
 
-	public String oauth_consumer_key = null; // Your consumer key
+	private String oauth_access_token = null;
 
-	public String oauth_consumer_secret = null; // Your consumer secret
+	private String oauth_access_token_secret = null;
 
-	public String oauth_request_token = null; // Request token
+	private String oauth_request_token;
 
-	public String oauth_request_token_secret = null; // Request token secret
+	private String oauth_request_token_secret;
 
-	public String oauth_access_token = null; // Variable to store access token
-
-	public String oauth_access_token_secret = null; // Variable to store access
-													// token secret
-
-	public String oauth_verify_code = "Your verification_code"; // Should
-																// contain the
-																// Verification
-																// Code received
-																// from the
-																// authorization
-																// step
-
-	public void init() throws IOException, ETWSException, URISyntaxException {
-		client = OAuthClientImpl.getInstance(); // Instantiate IOAUthClient
-		request = new ClientRequest(); // Instantiate ClientRequest
-		request.setEnv(Environment.SANDBOX); // Use sandbox environment
-		request.setConsumerKey(oauth_consumer_key); // Set consumer key
-		request.setConsumerSecret(oauth_consumer_secret); // Set consumer secret
-		token = client.getRequestToken(request); // Get request-token object
-		oauth_request_token = token.getToken(); // Get token string
-		oauth_request_token_secret = token.getSecret(); // Get token secret
-		String authorizeURL = null;
-		authorizeURL = client.getAuthorizeUrl(request); // E*TRADE authorization
-														// URL
+	private void authorize() throws IOException, ETWSException, URISyntaxException {
+		ClientRequest request = new ClientRequest();
+		request.setEnv(Environment.SANDBOX);
+		request.setConsumerKey(oauth_consumer_key);
+		request.setConsumerSecret(oauth_consumer_secret);
+		Token token = oauth_client.getRequestToken(request);
+		oauth_request_token = token.getToken();
+		oauth_request_token_secret = token.getSecret();
+		request.setToken(oauth_request_token);
+		request.setTokenSecret(oauth_request_token_secret);
+		String authorizeURL = oauth_client.getAuthorizeUrl(request);
 		URI uri = new java.net.URI(authorizeURL);
 		Desktop desktop = Desktop.getDesktop();
 		desktop.browse(uri);
-		request = new ClientRequest(); // Instantiate ClientRequest
-		request.setEnv(Environment.SANDBOX); // Use sandbox environment
-		// Prepare request
-		request.setConsumerKey(oauth_consumer_key); // Set consumer key
-		request.setConsumerSecret(oauth_consumer_secret); // Set consumer secret
-		request.setToken(oauth_request_token); // Set request token
-		request.setTokenSecret(oauth_request_token_secret); // Set request-token
-															// secret
+	}
+
+	private void verify() throws IOException, ETWSException {
+		System.out.print("ENTER THE CODE AND PRESS ENTER: ");
+		System.out.flush();
+		String oauth_verify_code = new BufferedReader(new InputStreamReader(System.in)).readLine();
+		ClientRequest request = newClientRequest();
+		request.setToken(oauth_request_token);
+		request.setTokenSecret(oauth_request_token_secret);
 		request.setVerifierCode(oauth_verify_code); // Set verification code
 		// Get access token
-		token = client.getAccessToken(request); // Get access-token object
+		Token token = oauth_client.getAccessToken(request); // Get access-token
+															// object
 		oauth_access_token = token.getToken(); // Access token string
 		oauth_access_token_secret = token.getSecret(); // Access token secret
 	}
 
 	public void listAccounts() {
-		request = new ClientRequest(); // Instantiate ClientRequest
-		// Prepare request
-		request.setEnv(Environment.SANDBOX);
-		request.setConsumerKey(oauth_consumer_key);
-		request.setConsumerSecret(oauth_consumer_secret);
-		request.setToken(oauth_access_token);
-		request.setTokenSecret(oauth_access_token_secret);
+		ClientRequest request = newClientRequest();
 		try {
 			AccountsClient account_client = new AccountsClient(request);
 			AccountListResponse response = account_client.getAccountList();
@@ -115,38 +104,52 @@ public class Tutorial {
 		}
 	}
 
-	private static JsonNode getOptionChain(String symbol) {
-		/**
-		 * Sample Request
-GET https://etws.etrade.com/market/rest/optionchains?expirationMonth=04&expirationYear=2011&chainType=PUT&skipAdjusted=true&underlier=GOOG
-
-		 * Documentation: https://us.etrade.com/ctnt/dev-portal/getDetail?contentUri=V0_Documentation-MarketAPI-GetOptionChains	
-		 */
-		throw new UnsupportedOperationException("unfinished code");
+	private ClientRequest newClientRequest() {
+		ClientRequest request = new ClientRequest();
+		// Prepare request
+		request.setEnv(Environment.SANDBOX);
+		request.setConsumerKey(oauth_consumer_key);
+		request.setConsumerSecret(oauth_consumer_secret);
+		request.setToken(oauth_access_token);
+		request.setTokenSecret(oauth_access_token_secret);
+		return request;
 	}
 
-	private static JsonNode getQuote(String symbol) {
-		/**
-		 * // https://us.etrade.com/ctnt/dev-portal/getDetail?contentUri=V0_Documentation-MarketAPI-GetQuotes
-		 * // URL https://etws.etrade.com/market/rest/quote/{symbol, symbol...}
-		 */
-		throw new UnsupportedOperationException("unfinished code");
+	private List<OptionChainPair> getOptionChain(String symbol) throws IOException, ETWSException {
+		OptionChainRequest req = new OptionChainRequest();
+		req.setExpirationMonth("1"); // example values
+		req.setExpirationYear("2018");
+		req.setChainType("CALL"); // example values
+		req.setSkipAdjusted("FALSE");
+		req.setUnderlier("GOOG");
+		
+		ClientRequest request = newClientRequest();
+		MarketClient client = new MarketClient(request);
+		OptionChainResponse response = client.getOptionChain(req);
+		return response.getOptionPairs();
 	}
-	
-	
+
+	private List<QuoteData> getQuote(String symbol) throws IOException, ETWSException {
+		ClientRequest request = newClientRequest();
+		ArrayList<String> list = new ArrayList<String>();
+		MarketClient client = new MarketClient(request);
+		list.add("CSCO");
+		list.add("AAPL");
+		QuoteResponse response = client.getQuote(list, Boolean.FALSE, DetailFlag.ALL);
+		return response.getQuoteData();
+	}
+
 	public static void main(String[] args) throws IOException, ETWSException, URISyntaxException {
 		Tutorial t = new Tutorial();
-		t.init();
+		t.authorize();
+		t.verify();
 		t.listAccounts();
-		
-		String[] symbols = { "AAPL", "MSFT", "IBM" };
-		
-		for(String symbol : symbols) {
+		String[] symbols = { "MSFT" };
+		for (String symbol : symbols) {
 			ObjectMapper om = new ObjectMapper();
-			
-			System.out.println(om.writeValueAsString(getQuote(symbol)));
-			System.out.println(om.writeValueAsString(getOptionChain(symbol)));
+			ObjectWriter ow = om.writerWithDefaultPrettyPrinter();
+			System.out.println(t.getQuote(symbol).toString());
+			System.out.println(ow.writeValueAsString(t.getOptionChain(symbol)));
 		}
 	}
-
 }
