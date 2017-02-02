@@ -1,20 +1,19 @@
-<persistence>
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.0"
+	xmlns="http://java.sun.com/xml/ns/persistence">
+	<properties>
+		<property name="hibernate.connection.provider_class">org.hibernate.connection.DatasourceConnectionProvider
+		</property>
+	</properties>
 	<persistence-unit name="manager1" transaction-type="RESOURCE_LOCAL">
-		<class>com.etrade.etws.market.OptionChainPair</class>
 		<properties>
-			<property name="javax.persistence.jdbc.driver" value="org.apache.derby.jdbc.EmbeddedDriver" />
-			<property name="javax.persistence.jdbc.user" value="sa" />
-			<property name="javax.persistence.jdbc.password" value="" />
-			<property name="javax.persistence.jdbc.url" value="jdbc:derby::etrade.db;create=true" />
-			<property name="hibernate.dialect" value="org.hibernate.dialect.DerbyDialect"/>
-
-			<property name="hibernate.hbm2ddl.auto" value="update" />
-			<property name="hibernate.max_fetch_depth" value="3" />
-
-
-			<!-- alternatively to <class> and <property> declarations, you can use 
-				a regular hibernate.cfg.xml file -->
-			<property name="hibernate.ejb.cfgfile" value="/hibernate.cfg.xml"/>
+			<property name="hibernate.connection.provider_class">org.hibernate.connection.DatasourceConnectionProvider
+			</property>
+			<property name="hibernate.ejb.cfgfile" value="/hibernate.cfg.xml" />
+			<property name="javax.persistence.jdbc.driver" value="org.apache.derby.jdbc.EmbeddedDriver"></property>
+			<property name="javax.persistence.jdbc.url" value="jdbc:derby:etrade;create=true"></property>
+			<property name="javax.persistence.jdbc.user" value="sa"></property>
 		</properties>
+		<provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 	</persistence-unit>
 </persistence>
