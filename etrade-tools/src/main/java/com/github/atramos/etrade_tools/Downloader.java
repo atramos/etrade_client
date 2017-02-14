@@ -36,6 +36,7 @@ import com.etrade.etws.sdk.common.ETWSException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.atramos.etrade_tools.DataAccess.OptionStruct;
 
 /**
  * E-Trade API tutorial code, heavily debugged, refactored and expanded.
@@ -77,7 +78,7 @@ public class Downloader {
 
 	private Environment env = Environment.valueOf(config.get("environment").asText());
 
-	private File cookieFile = new File(System.getProperty("java.io.tmpdir"), getClass().getName());
+	private File cookieFile = new File("cookie.txt");
 
 	private void authorize() throws IOException, ETWSException, URISyntaxException {
 		if (cookieFile.exists())
@@ -174,6 +175,22 @@ public class Downloader {
 		}
 	}
 
+	private void getOptionQuotes(List<String> symbols) throws IOException, ETWSException {
+		ClientRequest request = newClientRequest();
+		MarketClient client = new MarketClient(request);
+		for(List<String> part : ListUtils.partition(symbols, 25)) {
+			logger.info(part.toString());
+			QuoteResponse response = client.getQuote(new ArrayList<String>(part), Boolean.FALSE, DetailFlag.INTRADAY);
+			da.store(response.getQuoteData(), 
+					quote -> quote.getProduct().getSymbol()
+						+ ":" + quote.getProduct().getExpirationYear()
+						+ ":" + quote.getProduct().getExpirationMonth()
+						+ ":" + quote.getProduct().getExpirationDay()
+						+ ":" + quote.getProduct().getOptionType()
+						+ ":" + quote.getProduct().getStrikePrice());
+		}
+	}
+
 	public static void main(String[] args) throws Exception {
 		Downloader t = new Downloader();
 		t.authorize();
@@ -198,9 +215,9 @@ public class Downloader {
 			da.store(getOptionChain(sym, "3", "2017"), sym + ".chain");
 		}
 		
-		// 
-		// underlier:year:month:day:optionType:strikePrice
-		// da.store("MSFT:2017:02:17:CALL:90",
-		// this.getQuote("MSFT:2017:02:17:CALL:90"));
+		List<OptionStruct> queue = da.getOptionQuoteQueue();
+		
+		this.getOptionQuotes(queue.stream().map(item -> item.callSymbol ).collect(Collectors.toList()));
+		this.getOptionQuotes(queue.stream().map(item -> item.putSymbol ).collect(Collectors.toList()));
 	}
 }

@@ -12,9 +12,12 @@ import com.cloudant.client.api.ClientBuilder;
 import com.cloudant.client.api.CloudantClient;
 import com.cloudant.client.api.Database;
 import com.cloudant.client.api.views.Key;
+import com.cloudant.client.api.views.Key.ComplexKey;
+import com.cloudant.client.api.views.ViewResponse.Row;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -88,5 +91,44 @@ public class DataAccess {
 
 	public Map<String, String> getDocIndex() {
 		return docIndex;
+	}
+	
+	public static class OptionStruct {
+		public String callSymbol;
+		public String putSymbol;
+		public double stockPrice;
+		public double callStrike;
+		public double putStrike;
+	}
+	
+	public List<OptionStruct> getOptionQuoteQueue() throws IOException {
+		List<Row<ComplexKey, JsonArray>> rows = db.getViewRequestBuilder("main", "strike")
+				.newRequest(Key.Type.COMPLEX, JsonArray.class)
+				.groupLevel(1)
+				.build()
+				.getResponse().getRows();
+		return rows.stream().filter(row -> {
+			JsonArray arr = row.getValue();
+			JsonArray puts = arr.get(0).getAsJsonArray();
+			JsonArray underlying = arr.get(1).getAsJsonArray();
+			JsonArray calls = arr.get(2).getAsJsonArray();
+			return !(puts.size() == 0 ||
+			   underlying.size() == 0 ||
+			   calls.size() == 0);
+		}).map(row -> {
+			JsonArray arr = row.getValue().getAsJsonArray();
+			JsonArray puts = arr.get(0).getAsJsonArray();
+			JsonArray underlying = arr.get(1).getAsJsonArray();
+			JsonArray calls = arr.get(2).getAsJsonArray();
+			OptionStruct os = new OptionStruct();
+			os.stockPrice = underlying.get(0).getAsDouble();
+			os.putSymbol = puts.get(0).getAsJsonObject().get("symbol").getAsString();
+			os.putStrike = puts.get(0).getAsJsonObject().get("strikePrice").getAsDouble();
+			if(calls.get(0).isJsonObject()) {
+				os.callSymbol = calls.get(0).getAsJsonObject().get("symbol").getAsString();
+				os.callStrike = calls.get(0).getAsJsonObject().get("strikePrice").getAsDouble();
+			}
+			return os;
+		}).collect(Collectors.toList());
 	}
 }
