@@ -157,12 +157,17 @@ public class Downloader {
 		req.setExpirationMonth(month);
 		req.setExpirationYear(year);
 		req.setChainType("CALLPUT");
-		req.setSkipAdjusted("FALSE");
+		req.setSkipAdjusted("TRUE");
 		req.setUnderlier(symbol);
 		ClientRequest request = newClientRequest();
 		MarketClient client = new MarketClient(request);
-		OptionChainResponse response = client.getOptionChain(req);
-		return response.getOptionPairs();
+		try {
+			OptionChainResponse response = client.getOptionChain(req);
+			return response.getOptionPairs();
+		} catch (Exception e) {
+			logger.fine("No quote: " + symbol + "." + month + "." + year);
+			return new ArrayList<>();
+		}
 	}
 
 	private void getQuotes(List<String> symbols) throws IOException, ETWSException {
@@ -171,7 +176,7 @@ public class Downloader {
 		for(List<String> part : ListUtils.partition(symbols, 25)) {
 			logger.info(part.toString());
 			QuoteResponse response = client.getQuote(new ArrayList<String>(part), Boolean.FALSE, DetailFlag.INTRADAY);
-			da.store(response.getQuoteData(), quote -> quote.getProduct().getSymbol());
+			da.store(response.getQuoteData(), quote -> quote.getProduct().getSymbol(), true);
 		}
 	}
 
@@ -187,7 +192,7 @@ public class Downloader {
 						+ ":" + quote.getProduct().getExpirationMonth()
 						+ ":" + quote.getProduct().getExpirationDay()
 						+ ":" + quote.getProduct().getOptionType()
-						+ ":" + quote.getProduct().getStrikePrice());
+						+ ":" + quote.getProduct().getStrikePrice(), true);
 		}
 	}
 
@@ -203,21 +208,27 @@ public class Downloader {
 		List<String> stocks = CBOE.getOptionables().map(sym -> sym.Stock_Symbol).collect(Collectors.toList());
 		Set<String> stopList = da.getDocIndex().keySet();
 		
-		//da.enableUpdates();
-		stocks.removeAll(stopList);
+		//stocks.removeAll(stopList);
 		this.getQuotes(stocks);
 		
-		List<String> top100 = da.getTopByVolume(100).stream()
+		List<String> tops = da.getTopByVolume(500).stream()
 				.filter(sym -> { return !stopList.contains(sym + ".chain"); })
 				.collect(Collectors.toList());
 		
-		for(String sym: top100) {
-			da.store(getOptionChain(sym, "3", "2017"), sym + ".chain");
+		for(String sym: tops) {
+			da.store(getOptionChain(sym, "3", "2017"), sym + ".chain", false);
+//			da.store(getOptionChain(sym, "4", "2017"), sym + ".chain", false);
+//			da.store(getOptionChain(sym, "5", "2017"), sym + ".chain", false);
+//			da.store(getOptionChain(sym, "9", "2017"), sym + ".chain", false);
+//			da.store(getOptionChain(sym, "3", "2018"), sym + ".chain", false);
 		}
 		
 		List<OptionStruct> queue = da.getOptionQuoteQueue();
 		
-		this.getOptionQuotes(queue.stream().map(item -> item.callSymbol ).collect(Collectors.toList()));
-		this.getOptionQuotes(queue.stream().map(item -> item.putSymbol ).collect(Collectors.toList()));
+		List<String> optList = queue.stream().map(item -> item.callSymbol ).collect(Collectors.toList());
+		optList.addAll(queue.stream().map(item -> item.putSymbol ).collect(Collectors.toList()));
+		optList.removeIf(o -> o == null);
+		
+		this.getOptionQuotes(optList);
 	}
 }

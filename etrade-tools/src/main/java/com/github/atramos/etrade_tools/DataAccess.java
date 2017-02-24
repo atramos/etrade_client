@@ -22,17 +22,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
 
 public class DataAccess {
 
 	private Map<String,String> docIndex = null;
 	
-	private boolean enableUpdates = false;
-	
-	public void enableUpdates() throws IOException {
-		this.enableUpdates = true;
-	}
-
 	public DataAccess() throws JsonProcessingException, IOException {
 		docIndex = db.getAllDocsRequestBuilder().build().getResponse().getIdsAndRevs();
 	}
@@ -52,11 +47,11 @@ public class DataAccess {
 
 	private Database db = client.database(CLOUDANT_DB, false);
 	
-	public void store(Object o, String id) throws JsonProcessingException {
-		this.store(Arrays.asList(new Object[] { o }), any -> id);
+	public void store(Object o, String id, boolean enableUpdates) throws JsonProcessingException {
+		this.store(Arrays.asList(new Object[] { o }), any -> id, enableUpdates);
 	}
 	
-	public <T> void store(List<T> list, Function<T,String> idMapper) throws JsonProcessingException {
+	public <T> void store(List<T> list, Function<T,String> idMapper, boolean enableUpdates) throws JsonProcessingException {
 		final ObjectMapper om = new ObjectMapper();
 		db.bulk(list.stream().map(item -> {
 			String jsonStr;
@@ -108,13 +103,18 @@ public class DataAccess {
 				.build()
 				.getResponse().getRows();
 		return rows.stream().filter(row -> {
-			JsonArray arr = row.getValue();
-			JsonArray puts = arr.get(0).getAsJsonArray();
-			JsonArray underlying = arr.get(1).getAsJsonArray();
-			JsonArray calls = arr.get(2).getAsJsonArray();
-			return !(puts.size() == 0 ||
-			   underlying.size() == 0 ||
-			   calls.size() == 0);
+			try {
+				JsonArray arr = row.getValue();
+				JsonArray puts = arr.get(0).getAsJsonArray();
+				JsonArray underlying = arr.get(1).getAsJsonArray();
+				JsonArray calls = arr.get(2).getAsJsonArray();
+				return !(puts.size() == 0 ||
+				   underlying.size() == 0 ||
+				   calls.size() == 0);
+			}
+			catch(JsonSyntaxException e) {
+				return false;
+			}
 		}).map(row -> {
 			JsonArray arr = row.getValue().getAsJsonArray();
 			JsonArray puts = arr.get(0).getAsJsonArray();
