@@ -1,7 +1,8 @@
-package com.github.atramos.etrade_tools;
+package com.github.atramos.quant.etrade_tools;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -17,12 +18,10 @@ import com.cloudant.client.api.views.ViewResponse.Row;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSyntaxException;
 
 public class DataAccess {
 
@@ -96,39 +95,85 @@ public class DataAccess {
 		public double putStrike;
 	}
 	
-	public List<OptionStruct> getOptionQuoteQueue() throws IOException {
-		List<Row<ComplexKey, JsonArray>> rows = db.getViewRequestBuilder("main", "strike")
-				.newRequest(Key.Type.COMPLEX, JsonArray.class)
+	public class Chain
+	{
+	  private String exp;
+
+	  public String getExp() { return this.exp; }
+
+	  public void setExp(String exp) { this.exp = exp; }
+
+	  private ArrayList<Double> calls;
+
+	  public ArrayList<Double> getCalls() { return this.calls; }
+
+	  public void setCalls(ArrayList<Double> calls) { this.calls = calls; }
+
+	  private ArrayList<Double> puts;
+
+	  public ArrayList<Double> getPuts() { return this.puts; }
+
+	  public void setPuts(ArrayList<Double> puts) { this.puts = puts; }
+	}
+
+	public class RootObject
+	{
+	  private double last;
+
+	  public double getLast() { return this.last; }
+
+	  public void setLast(double last) { this.last = last; }
+
+	  private ArrayList<Chain> chains;
+
+	  public ArrayList<Chain> getChains() { return this.chains; }
+
+	  public void setChains(ArrayList<Chain> chains) { this.chains = chains; }
+	  
+	  private String symbol;
+
+	  public String getSymbol() { return this.symbol; }
+
+	  public void setSymbol(String symbol) { this.symbol = symbol; }
+	}
+	
+	public List<String> getOptionQuoteQueue() throws IOException {
+		
+		List<Row<ComplexKey, RootObject>> rows = db.getViewRequestBuilder("main", "strike")
+				.newRequest(Key.Type.COMPLEX, RootObject.class)
 				.groupLevel(1)
 				.build()
 				.getResponse().getRows();
-		return rows.stream().filter(row -> {
-			try {
-				JsonArray arr = row.getValue();
-				JsonArray puts = arr.get(0).getAsJsonArray();
-				JsonArray underlying = arr.get(1).getAsJsonArray();
-				JsonArray calls = arr.get(2).getAsJsonArray();
-				return !(puts.size() == 0 ||
-				   underlying.size() == 0 ||
-				   calls.size() == 0);
+		
+		List<String> out = new ArrayList<>();
+		
+		for(Row<ComplexKey, RootObject> row: rows) {
+			
+			String underlying = row.getValue().getSymbol().toUpperCase();
+			
+			if(row.getValue().getChains().size() > 0) {
+				for(Chain chain: row.getValue().getChains()) {
+					for(Double call: chain.getCalls())
+						out.add(underlying + ":" + chain.getExp() + ":CALL:" + call.toString());
+
+					for(Double put: chain.getPuts())
+						out.add(underlying + ":" + chain.getExp() + ":PUT:" + put.toString());
+				}
 			}
-			catch(JsonSyntaxException e) {
-				return false;
-			}
-		}).map(row -> {
-			JsonArray arr = row.getValue().getAsJsonArray();
-			JsonArray puts = arr.get(0).getAsJsonArray();
-			JsonArray underlying = arr.get(1).getAsJsonArray();
-			JsonArray calls = arr.get(2).getAsJsonArray();
-			OptionStruct os = new OptionStruct();
-			os.stockPrice = underlying.get(0).getAsDouble();
-			os.putSymbol = puts.get(0).getAsJsonObject().get("symbol").getAsString();
-			os.putStrike = puts.get(0).getAsJsonObject().get("strikePrice").getAsDouble();
-			if(calls.get(0).isJsonObject()) {
-				os.callSymbol = calls.get(0).getAsJsonObject().get("symbol").getAsString();
-				os.callStrike = calls.get(0).getAsJsonObject().get("strikePrice").getAsDouble();
-			}
-			return os;
-		}).collect(Collectors.toList());
+		}
+		return out;
+	}
+
+	public void deleteFromView(String view) throws IOException {
+		db.bulk(db.getViewRequestBuilder("main", view)
+					.newRequest(Key.Type.STRING, String.class).build()
+					.getResponse().getRows()
+					.stream().map(row -> {
+						JsonObject jo = new JsonObject();
+						jo.add("_id", new JsonPrimitive(row.getId()));
+						jo.add("_rev", new JsonPrimitive(row.getKey()));
+						jo.add("_deleted", new JsonPrimitive(true));
+						return jo;
+					}).collect(Collectors.toList()));
 	}
 }

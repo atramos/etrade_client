@@ -1,11 +1,13 @@
-package com.github.atramos.etrade_tools;
+package com.github.atramos.quant.universe;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.csv.CSVFormat;
@@ -17,7 +19,7 @@ import org.apache.commons.csv.CSVParser;
  * @author atram
  *
  */
-public class CBOE {
+public class CBOE implements Universe {
 	
 	public static class Option {
 		public String Company_Name;
@@ -59,4 +61,9 @@ public class CBOE {
 			return opt;
 		});
 	}
+	
+	public List<String> listStocks() throws IOException {
+		return CBOE.getOptionables().map(sym -> sym.Stock_Symbol).collect(Collectors.toList());
+	}
+
 }

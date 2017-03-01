@@ -1,16 +1,23 @@
 {
   "_id": "_design/main",
-  "_rev": "117-8fe2b113e1244306df8ed034d3a3737d",
+  "_rev": "162-f59d0ff6cf8e2c7910259d58225b2ae1",
   "views": {
     "volume": {
       "map": "function (doc) {\n  if(doc.product.type == \"EQ\")\n    emit((\"000000000000\" + doc.intraday.totalVolume).slice(-12), 1);\n}"
     },
     "strike": {
-      "map": "function (doc) {\n  if(doc.product && doc.product.type == \"EQ\")\n    emit(doc.product.symbol, [[],[doc.intraday.lastTrade],[]])\n  else if(doc.array)\n    for(i=0; i < doc.array.length; ++i) {\n      var call = doc.array[i].call[0];\n      emit(call.rootSymbol, [[{ \"strikePrice\": call.strikePrice, \n        \"symbol\": call.rootSymbol + \":\" + call.expireDate.year + \":\" + call.expireDate.month + \":\" + call.expireDate.day + \":CALL:\" + call.strikePrice}],[],[]]);\n      var put = doc.array[i].put[0];\n      emit(put.rootSymbol, [[],[],[{ \"strikePrice\": put.strikePrice, \n        \"symbol\": put.rootSymbol + \":\" + put.expireDate.year + \":\" + put.expireDate.month + \":\" + put.expireDate.day + \":PUT:\" + put.strikePrice}],[],[]]);\n    }\n}",
-      "reduce": "function (keys, values, rereduce) {\n  var nvalues = [[],[],[]];\n  for(i=0; i<values.length; ++i) {\n    nvalues[0] = nvalues[0].concat(values[i][0]);\n    nvalues[1] = nvalues[1].concat(values[i][1]);\n    nvalues[2] = nvalues[2].concat(values[i][2]);\n  }\n  if(nvalues[1].length > 0) {\n    for(i=0; i<nvalues[0].length; ++i) {\n      if(nvalues[0][i].strikePrice >= nvalues[1][0]) {\n        nvalues[0] = [ nvalues[0][i] ];\n        break;\n      }\n    }\n    for(i=0; i<nvalues[2].length; ++i) {\n      if(nvalues[2][i].strikePrice >= nvalues[1][0]) {\n        nvalues[2] = [ nvalues[2][i-1] ];\n        break;\n      }\n    }\n  }\n  return nvalues;\n}"
+      "map": "function (doc) {\n  if(doc.product && doc.product.type == \"EQ\")\n    emit(doc.product.symbol, {\"last\": doc.intraday.lastTrade, \"symbol\": doc.product.symbol, \"chains\":[]})\n  else if(doc.array) {\n    var spec = doc.array[0].call[0];\n    var exp = spec.expireDate.year + \":\" + spec.expireDate.month + \":\" + spec.expireDate.day;\n    var callStrikes = doc.array.map(function(x) {return x.call[0].strikePrice;});\n    var putStrikes = doc.array.map(function(x) {return x.put[0].strikePrice;});\n    emit(spec.rootSymbol, {\"chains\": [{\"exp\": exp, \"calls\": callStrikes, \"puts\": putStrikes}]});\n  }\n}",
+      "reduce": "function (keys, values, rereduce) {\n  var nvalues = { \"last\": \"\", \"symbol\":\"\", \"chains\": []};\n  for(i=0; i<values.length; ++i) {\n    nvalues.last = nvalues.last || values[i].last;\n    nvalues.symbol = nvalues.symbol || values[i].symbol;\n    nvalues.chains = nvalues.chains.concat(values[i].chains);\n  }\n  if(nvalues.last) {\n    nvalues.chains.forEach(function(chain) {\n      for(i=0; i < chain.calls.length; ++i) {\n        if(chain.calls[i] >= nvalues.last) {\n          chain.calls = [ chain.calls[i] ];\n          break;\n        }\n      }\n      for(i=chain.puts.length; i >= 0; --i) {\n        if(chain.puts[i] <= nvalues.last) {\n          chain.puts = [ chain.puts[i] ];\n          break;\n        }\n      }\n    });\n  }\n  return nvalues;\n}"
     },
-    "opt_spread_ratio": {
-      "map": "function (doc) {\n  if(doc.product.type == \"OPTN\" && doc.intraday.bid > 0)\n    var i = doc.intraday;\n    var r = (i.ask - i.bid) / (i.ask + i.bid ) * 2;\n    emit((\"000\" + r.toFixed(6)).slice(-10), [i.bid, i.ask]);\n}"
+    "spread_to_strike_ratio": {
+      "map": "function (doc) {\n  if(doc.product.type == \"OPTN\" && doc.intraday.bid > 0)\n    var i = doc.intraday;\n    var r = (i.ask - i.bid) / doc.product.strikePrice;\n    emit((\"000\" + r.toFixed(6)).slice(-10), [i.bid, i.ask, doc.product.strikePrice]);\n}"
+    },
+    "removal_q": {
+      "map": "function (doc) {\n  if(doc.errorMessage == \"Invalid Symbol\" || doc.product.type == \"OPTN\" || doc.product.type == \"EQ\")\n    emit(doc._rev);\n}"
+    },
+    "dashboard": {
+      "map": "function (doc) {\n  if(doc.product.type==\"EQ\") {\n    emit(doc.product.symbol, {\"stock\":doc});\n  }\n  else if(doc.product.type==\"OPTN\") {\n    emit(doc.product.symbol, {\"options\":[doc]});\n  }\n}",
+      "reduce": "function (keys, values, rereduce) {\n  var nval = {\"stock\":null,\"options\":[]};\n  for(i=0; i < values.length; ++i) {\n    nval.stock = nval.stock || values[i].stock;\n    nval.options = nval.options.concat(values[i].options);\n  }\n  return nval;\n}"
     }
   },
   "language": "javascript"

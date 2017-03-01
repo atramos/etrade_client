@@ -1,4 +1,4 @@
-package com.github.atramos.etrade_tools;
+package com.github.atramos.quant.etrade_tools;
 
 import java.awt.Desktop;
 import java.io.BufferedReader;
@@ -13,7 +13,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.io.FileUtils;
@@ -36,7 +35,8 @@ import com.etrade.etws.sdk.common.ETWSException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.atramos.etrade_tools.DataAccess.OptionStruct;
+import com.github.atramos.quant.universe.SP500;
+import com.github.atramos.quant.universe.Universe;
 
 /**
  * E-Trade API tutorial code, heavily debugged, refactored and expanded.
@@ -171,6 +171,7 @@ public class Downloader {
 	}
 
 	private void getQuotes(List<String> symbols) throws IOException, ETWSException {
+		logger.info(symbols.size() + " Symbols: " + symbols);
 		ClientRequest request = newClientRequest();
 		MarketClient client = new MarketClient(request);
 		for(List<String> part : ListUtils.partition(symbols, 25)) {
@@ -202,33 +203,38 @@ public class Downloader {
 		t.verify();
 		t.downloadAll();
 	}
+	
+	private static Universe universe = new SP500(); 
 
 	private void downloadAll() throws JsonProcessingException, IOException, ETWSException {
 		
-		List<String> stocks = CBOE.getOptionables().map(sym -> sym.Stock_Symbol).collect(Collectors.toList());
+		da.deleteFromView("removal_q");
+		
+		List<String> stocks = universe.listStocks();
 		Set<String> stopList = da.getDocIndex().keySet();
 		
-		//stocks.removeAll(stopList);
+		stocks.removeAll(stopList);
 		this.getQuotes(stocks);
 		
-		List<String> tops = da.getTopByVolume(500).stream()
-				.filter(sym -> { return !stopList.contains(sym + ".chain"); })
-				.collect(Collectors.toList());
+		List<String> topByVolume = da.getTopByVolume(100);
+		logger.info("Top Stocks = " + topByVolume);
 		
-		for(String sym: tops) {
-			da.store(getOptionChain(sym, "3", "2017"), sym + ".chain", false);
-//			da.store(getOptionChain(sym, "4", "2017"), sym + ".chain", false);
-//			da.store(getOptionChain(sym, "5", "2017"), sym + ".chain", false);
-//			da.store(getOptionChain(sym, "9", "2017"), sym + ".chain", false);
-//			da.store(getOptionChain(sym, "3", "2018"), sym + ".chain", false);
+		for(String exp: new String[] { "2017-03", "2017-04", "2017-05", 
+				"2017-09", "2017-12", "2018-04"}) {
+			
+			for(String sym: topByVolume) {
+				String[] year_month = exp.split("-");
+				String key = sym + ".chain." + exp;
+
+				if(stopList.contains(key)) continue;
+				
+				da.store(getOptionChain(sym, year_month[1], year_month[0]), key, false);
+			}
 		}
+			
+		List<String> queue = da.getOptionQuoteQueue();
 		
-		List<OptionStruct> queue = da.getOptionQuoteQueue();
-		
-		List<String> optList = queue.stream().map(item -> item.callSymbol ).collect(Collectors.toList());
-		optList.addAll(queue.stream().map(item -> item.putSymbol ).collect(Collectors.toList()));
-		optList.removeIf(o -> o == null);
-		
-		this.getOptionQuotes(optList);
+		this.getOptionQuotes(queue);
 	}
+
 }
