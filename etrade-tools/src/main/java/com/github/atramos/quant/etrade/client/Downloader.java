@@ -1,4 +1,4 @@
-package com.github.atramos.quant.etrade_tools;
+package com.github.atramos.quant.etrade.client;
 
 import java.awt.Desktop;
 import java.io.BufferedReader;
@@ -35,6 +35,7 @@ import com.etrade.etws.sdk.common.ETWSException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.atramos.quant.etrade.dao.DataAccess;
 import com.github.atramos.quant.universe.SP500;
 import com.github.atramos.quant.universe.Universe;
 

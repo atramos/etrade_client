@@ -1,4 +1,4 @@
-package com.github.atramos.quant.etrade_tools;
+package com.github.atramos.quant.etrade.dao;
 
 import java.io.File;
 import java.io.IOException;
@@ -87,72 +87,22 @@ public class DataAccess {
 		return docIndex;
 	}
 	
-	public static class OptionStruct {
-		public String callSymbol;
-		public String putSymbol;
-		public double stockPrice;
-		public double callStrike;
-		public double putStrike;
-	}
-	
-	public class Chain
-	{
-	  private String exp;
-
-	  public String getExp() { return this.exp; }
-
-	  public void setExp(String exp) { this.exp = exp; }
-
-	  private ArrayList<Double> calls;
-
-	  public ArrayList<Double> getCalls() { return this.calls; }
-
-	  public void setCalls(ArrayList<Double> calls) { this.calls = calls; }
-
-	  private ArrayList<Double> puts;
-
-	  public ArrayList<Double> getPuts() { return this.puts; }
-
-	  public void setPuts(ArrayList<Double> puts) { this.puts = puts; }
-	}
-
-	public class RootObject
-	{
-	  private double last;
-
-	  public double getLast() { return this.last; }
-
-	  public void setLast(double last) { this.last = last; }
-
-	  private ArrayList<Chain> chains;
-
-	  public ArrayList<Chain> getChains() { return this.chains; }
-
-	  public void setChains(ArrayList<Chain> chains) { this.chains = chains; }
-	  
-	  private String symbol;
-
-	  public String getSymbol() { return this.symbol; }
-
-	  public void setSymbol(String symbol) { this.symbol = symbol; }
-	}
-	
 	public List<String> getOptionQuoteQueue() throws IOException {
 		
-		List<Row<ComplexKey, RootObject>> rows = db.getViewRequestBuilder("main", "strike")
-				.newRequest(Key.Type.COMPLEX, RootObject.class)
+		List<Row<ComplexKey, QueueStock>> rows = db.getViewRequestBuilder("main", "strike")
+				.newRequest(Key.Type.COMPLEX, QueueStock.class)
 				.groupLevel(1)
 				.build()
 				.getResponse().getRows();
 		
 		List<String> out = new ArrayList<>();
 		
-		for(Row<ComplexKey, RootObject> row: rows) {
+		for(Row<ComplexKey, QueueStock> row: rows) {
 			
 			String underlying = row.getValue().getSymbol().toUpperCase();
 			
 			if(row.getValue().getChains().size() > 0) {
-				for(Chain chain: row.getValue().getChains()) {
+				for(QueueChain chain: row.getValue().getChains()) {
 					for(Double call: chain.getCalls())
 						out.add(underlying + ":" + chain.getExp() + ":CALL:" + call.toString());
 

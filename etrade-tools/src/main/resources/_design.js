@@ -1,6 +1,6 @@
 {
   "_id": "_design/main",
-  "_rev": "162-f59d0ff6cf8e2c7910259d58225b2ae1",
+  "_rev": "194-79e2b4fbff907e66edfc07af9a255105",
   "views": {
     "volume": {
       "map": "function (doc) {\n  if(doc.product.type == \"EQ\")\n    emit((\"000000000000\" + doc.intraday.totalVolume).slice(-12), 1);\n}"
@@ -15,9 +15,16 @@
     "removal_q": {
       "map": "function (doc) {\n  if(doc.errorMessage == \"Invalid Symbol\" || doc.product.type == \"OPTN\" || doc.product.type == \"EQ\")\n    emit(doc._rev);\n}"
     },
+    "put_strike_yield": {
+      "map": "function (doc) {\n  if(doc.product.type == \"OPTN\" && doc.intraday.bid > 0)\n    var i = doc.intraday;\n    var r = i.bid / doc.product.strikePrice;\n    emit((\"000\" + r.toFixed(6)).slice(-10), [i.bid, i.ask, doc.product.strikePrice]);\n}"
+    },
+    "put_under_yield": {
+      "reduce": "function (keys, values, rereduce) {\n  var nval = {\"stock\":null,\"options\":[]};\n  for(i=0; i < values.length; ++i) {\n    nval.stock = nval.stock || values[i].stock;\n    nval.options = nval.options.concat(values[i].options);\n  }\n  if(nval.stock && nval.options) {\n    nval.options = nval.options.map(function(x) {\n      if(x) x.yield = x.bid / nval.stock.lastTrade;\n      return x;\n    });\n  }\n  return nval;\n}",
+      "map": "function (doc) {\n  if(doc.product.type==\"EQ\") {\n    emit(doc.product.symbol, {stock: {symbol: doc.product.symbol, lastTrade: doc.intraday.lastTrade}});\n  }\n  else if(doc.product.type==\"OPTN\" && doc.product.optionType==\"PUT\") {\n    emit(doc.product.symbol, {options: [ {id: doc._id, bid: doc.intraday.bid} ] });\n  }\n}"
+    },
     "dashboard": {
-      "map": "function (doc) {\n  if(doc.product.type==\"EQ\") {\n    emit(doc.product.symbol, {\"stock\":doc});\n  }\n  else if(doc.product.type==\"OPTN\") {\n    emit(doc.product.symbol, {\"options\":[doc]});\n  }\n}",
-      "reduce": "function (keys, values, rereduce) {\n  var nval = {\"stock\":null,\"options\":[]};\n  for(i=0; i < values.length; ++i) {\n    nval.stock = nval.stock || values[i].stock;\n    nval.options = nval.options.concat(values[i].options);\n  }\n  return nval;\n}"
+      "reduce": "function (keys, values, rereduce) {\n  var nval = {\"stock\":null,\"options\":[]};\n  for(i=0; i < values.length; ++i) {\n    nval.stock = nval.stock || values[i].stock;\n    nval.options = nval.options.concat(values[i].options);\n  }\n  return nval;\n}",
+      "map": "function (doc) {\n  if(doc.product.type==\"EQ\") {\n    emit(doc.product.symbol, {\"stock\":doc});\n  }\n  else if(doc.product.type==\"OPTN\") {\n    emit(doc.product.symbol, {\"options\":[doc]});\n  }\n}"
     }
   },
   "language": "javascript"
