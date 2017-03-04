@@ -1,4 +1,4 @@
-package com.github.atramos.quant.etrade.dao;
+package com.github.atramos.quant.etrade.cloud_loader;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,11 +23,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
-public class DataAccess {
+public class CloudantDAO {
 
 	private Map<String,String> docIndex = null;
 	
-	public DataAccess() throws JsonProcessingException, IOException {
+	public CloudantDAO() throws JsonProcessingException, IOException {
 		docIndex = db.getAllDocsRequestBuilder().build().getResponse().getIdsAndRevs();
 	}
 	

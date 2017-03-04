@@ -1,21 +1,13 @@
-package com.github.atramos.quant.etrade.client;
+package com.github.atramos.quant.etrade.cloud_loader;
 
-import java.awt.Desktop;
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
 import org.apache.commons.collections4.ListUtils;
-import org.apache.commons.io.FileUtils;
 
 import com.etrade.etws.account.Account;
 import com.etrade.etws.account.AccountListResponse;
@@ -24,18 +16,12 @@ import com.etrade.etws.market.OptionChainPair;
 import com.etrade.etws.market.OptionChainRequest;
 import com.etrade.etws.market.OptionChainResponse;
 import com.etrade.etws.market.QuoteResponse;
-import com.etrade.etws.oauth.sdk.client.IOAuthClient;
-import com.etrade.etws.oauth.sdk.client.OAuthClientImpl;
-import com.etrade.etws.oauth.sdk.common.Token;
 import com.etrade.etws.sdk.client.AccountsClient;
 import com.etrade.etws.sdk.client.ClientRequest;
-import com.etrade.etws.sdk.client.Environment;
 import com.etrade.etws.sdk.client.MarketClient;
 import com.etrade.etws.sdk.common.ETWSException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.atramos.quant.etrade.dao.DataAccess;
+import com.github.atramos.quant.etrade.client.EtradeApiClient;
 import com.github.atramos.quant.universe.SP500;
 import com.github.atramos.quant.universe.Universe;
 
@@ -51,78 +37,13 @@ import com.github.atramos.quant.universe.Universe;
  * @author atram
  *
  */
-public class Downloader {
+public class CloudLoader extends EtradeApiClient {
 	
 	private Logger logger = Logger.getLogger(getClass().getName());
 	
-	private IOAuthClient oauth_client = OAuthClientImpl.getInstance();
+	private CloudantDAO da = new CloudantDAO();
 
-	private DataAccess da = new DataAccess();
-
-	public Downloader() throws JsonProcessingException, IOException {
-	}
-
-	private JsonNode config = new ObjectMapper().readTree(new File("src/main/resources/config.json"))
-			.get(getClass().getSimpleName());
-
-	private String oauth_consumer_key = config.get("oauth_consumer_key").asText();
-
-	private String oauth_consumer_secret = config.get("oauth_consumer_secret").asText();
-
-	private String oauth_access_token = null;
-
-	private String oauth_access_token_secret = null;
-
-	private String oauth_request_token;
-
-	private String oauth_request_token_secret;
-
-	private Environment env = Environment.valueOf(config.get("environment").asText());
-
-	private File cookieFile = new File("cookie.txt");
-
-	private void authorize() throws IOException, ETWSException, URISyntaxException {
-		if (cookieFile.exists())
-			return;
-		ClientRequest request = new ClientRequest();
-		request.setEnv(env);
-		request.setConsumerKey(oauth_consumer_key);
-		request.setConsumerSecret(oauth_consumer_secret);
-		Token token = oauth_client.getRequestToken(request);
-		oauth_request_token = token.getToken();
-		oauth_request_token_secret = token.getSecret();
-		request.setToken(oauth_request_token);
-		request.setTokenSecret(oauth_request_token_secret);
-		String authorizeURL = oauth_client.getAuthorizeUrl(request);
-		URI uri = new java.net.URI(authorizeURL);
-		Desktop desktop = Desktop.getDesktop();
-		desktop.browse(uri);
-	}
-
-	private void verify() throws IOException, ETWSException {
-		if (!cookieFile.exists()) {
-			System.out.print("ENTER THE CODE AND PRESS ENTER: ");
-			System.out.flush();
-			String oauth_verify_code = new BufferedReader(new InputStreamReader(System.in)).readLine();
-			ClientRequest request = newClientRequest();
-			request.setToken(oauth_request_token);
-			request.setTokenSecret(oauth_request_token_secret);
-			request.setVerifierCode(oauth_verify_code); // Set verification code
-			// Get access token
-			Token token = oauth_client.getAccessToken(request); // Get
-																// access-token
-			// object
-			oauth_access_token = token.getToken(); // Access token string
-			oauth_access_token_secret = token.getSecret(); // Access token
-															// secret
-			FileUtils.writeLines(cookieFile,
-					Arrays.asList(new String[] { oauth_access_token, oauth_access_token_secret }));
-		} else {
-			System.out.println("using cookie file " + cookieFile.getAbsolutePath());
-			List<String> lines = FileUtils.readLines(cookieFile);
-			oauth_access_token = lines.get(0);
-			oauth_access_token_secret = lines.get(1);
-		}
+	public CloudLoader() throws JsonProcessingException, IOException {
 	}
 
 	public void listAccounts() {
@@ -140,17 +61,6 @@ public class Downloader {
 			}
 		} catch (Exception e) {
 		}
-	}
-
-	private ClientRequest newClientRequest() {
-		ClientRequest request = new ClientRequest();
-		// Prepare request
-		request.setEnv(env);
-		request.setConsumerKey(oauth_consumer_key);
-		request.setConsumerSecret(oauth_consumer_secret);
-		request.setToken(oauth_access_token);
-		request.setTokenSecret(oauth_access_token_secret);
-		return request;
 	}
 
 	private List<OptionChainPair> getOptionChain(String symbol, String month, String year) throws IOException, ETWSException {
@@ -199,7 +109,7 @@ public class Downloader {
 	}
 
 	public static void main(String[] args) throws Exception {
-		Downloader t = new Downloader();
+		CloudLoader t = new CloudLoader();
 		t.authorize();
 		t.verify();
 		t.downloadAll();
