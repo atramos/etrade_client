@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.ListUtils;
 
@@ -15,6 +16,8 @@ import com.etrade.etws.market.DetailFlag;
 import com.etrade.etws.market.OptionChainPair;
 import com.etrade.etws.market.OptionChainRequest;
 import com.etrade.etws.market.OptionChainResponse;
+import com.etrade.etws.market.OptionExpireDateGetRequest;
+import com.etrade.etws.market.OptionExpireDateGetResponse;
 import com.etrade.etws.market.QuoteResponse;
 import com.etrade.etws.sdk.client.AccountsClient;
 import com.etrade.etws.sdk.client.ClientRequest;
@@ -37,17 +40,19 @@ import com.github.atramos.quant.universe.Universe;
  * @author atram
  *
  */
-public class CloudLoader extends EtradeApiClient {
+public class CloudLoader {
 	
 	private Logger logger = Logger.getLogger(getClass().getName());
 	
 	private CloudantDAO da = new CloudantDAO();
+	
+	private EtradeApiClient apiClient = new EtradeApiClient();
 
 	public CloudLoader() throws JsonProcessingException, IOException {
 	}
 
 	public void listAccounts() {
-		ClientRequest request = newClientRequest();
+		ClientRequest request = apiClient.newClientRequest();
 		try {
 			AccountsClient account_client = new AccountsClient(request);
 			AccountListResponse response = account_client.getAccountList();
@@ -70,7 +75,7 @@ public class CloudLoader extends EtradeApiClient {
 		req.setChainType("CALLPUT");
 		req.setSkipAdjusted("TRUE");
 		req.setUnderlier(symbol);
-		ClientRequest request = newClientRequest();
+		ClientRequest request = apiClient.newClientRequest();
 		MarketClient client = new MarketClient(request);
 		try {
 			OptionChainResponse response = client.getOptionChain(req);
@@ -81,9 +86,20 @@ public class CloudLoader extends EtradeApiClient {
 		}
 	}
 
+	private List<String> getExpiries(String stock) throws IOException, ETWSException {
+		ClientRequest request = apiClient.newClientRequest();
+		MarketClient client = new MarketClient(request);
+		OptionExpireDateGetRequest req = new OptionExpireDateGetRequest();
+		req.setUnderlier(stock);
+		OptionExpireDateGetResponse response = client.getExpiryDates(req);
+		return response.getExpireDates().stream()
+				.map(date -> date.getYear() + "-" + date.getMonth())
+				.collect(Collectors.toList());
+	}
+
 	private void getQuotes(List<String> symbols) throws IOException, ETWSException {
 		logger.info(symbols.size() + " Symbols: " + symbols);
-		ClientRequest request = newClientRequest();
+		ClientRequest request = apiClient.newClientRequest();
 		MarketClient client = new MarketClient(request);
 		for(List<String> part : ListUtils.partition(symbols, 25)) {
 			logger.info(part.toString());
@@ -93,7 +109,7 @@ public class CloudLoader extends EtradeApiClient {
 	}
 
 	private void getOptionQuotes(List<String> symbols) throws IOException, ETWSException {
-		ClientRequest request = newClientRequest();
+		ClientRequest request = apiClient.newClientRequest();
 		MarketClient client = new MarketClient(request);
 		for(List<String> part : ListUtils.partition(symbols, 25)) {
 			logger.info(part.toString());
@@ -110,8 +126,8 @@ public class CloudLoader extends EtradeApiClient {
 
 	public static void main(String[] args) throws Exception {
 		CloudLoader t = new CloudLoader();
-		t.authorize();
-		t.verify();
+		t.apiClient.authorize();
+		t.apiClient.verify();
 		t.downloadAll();
 	}
 	
@@ -130,8 +146,7 @@ public class CloudLoader extends EtradeApiClient {
 		List<String> topByVolume = da.getTopByVolume(100);
 		logger.info("Top Stocks = " + topByVolume);
 		
-		for(String exp: new String[] { "2017-03", "2017-04", "2017-05", 
-				"2017-09", "2017-12", "2018-04"}) {
+		for(String exp: getExpiries("SPY")) {
 			
 			for(String sym: topByVolume) {
 				String[] year_month = exp.split("-");
