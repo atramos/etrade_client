@@ -1,6 +1,5 @@
-package com.github.atramos.quant.etrade.cloud_loader;
+package com.github.atramos.quant.etrade.cloudapp;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +17,7 @@ import com.cloudant.client.api.views.ViewResponse.Row;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.atramos.quant.etrade.cloudapp.DashboardModel.Value;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,7 +31,7 @@ public class CloudantDAO {
 		docIndex = db.getAllDocsRequestBuilder().build().getResponse().getIdsAndRevs();
 	}
 	
-	private JsonNode config = new ObjectMapper().readTree(new File("src/main/resources/config.json")).get(getClass().getSimpleName());
+	private JsonNode config = new ObjectMapper().readTree(getClass().getClassLoader().getResourceAsStream("/config.json")).get(getClass().getSimpleName());
 
 	private final String CLOUDANT_PASSWORD = config.get("CLOUDANT_PASSWORD").asText();
 
@@ -126,5 +126,16 @@ public class CloudantDAO {
 						jo.add("_deleted", new JsonPrimitive(true));
 						return jo;
 					}).collect(Collectors.toList()));
+	}
+	
+	public List<Value> getDashboard() throws IOException {
+		List<Row<ComplexKey, DashboardModel.Value>> rows = db.getViewRequestBuilder("main", "dashboard")
+				.newRequest(Key.Type.COMPLEX, DashboardModel.Value.class)
+				.groupLevel(1)
+				.build()
+				.getResponse().getRows();
+		return rows.stream()
+				.map(row -> row.getValue())
+				.collect(Collectors.toList());
 	}
 }
