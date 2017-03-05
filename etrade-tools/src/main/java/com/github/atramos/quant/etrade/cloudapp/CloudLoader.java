@@ -86,7 +86,7 @@ public class CloudLoader {
 		}
 	}
 
-	private List<String> getExpiries(String stock) throws IOException, ETWSException {
+	private List<String> getExpiryMonths(String stock) throws IOException, ETWSException {
 		ClientRequest request = apiClient.newClientRequest();
 		MarketClient client = new MarketClient(request);
 		OptionExpireDateGetRequest req = new OptionExpireDateGetRequest();
@@ -135,7 +135,7 @@ public class CloudLoader {
 
 	private void downloadAll() throws JsonProcessingException, IOException, ETWSException {
 		
-		da.deleteFromView("removal_q");
+		//da.deleteFromView("removal_q");
 		
 		List<String> stocks = universe.listStocks();
 		Set<String> stopList = da.getDocIndex().keySet();
@@ -143,12 +143,12 @@ public class CloudLoader {
 		stocks.removeAll(stopList);
 		this.getQuotes(stocks);
 		
-		List<String> topByVolume = da.getTopByVolume(100);
+		List<String> topByVolume = da.getTopByVolume(500);
 		logger.info("Top Stocks = " + topByVolume);
 		
-		for(String exp: getExpiries("SPY")) {
-			
-			for(String sym: topByVolume) {
+		for(String sym: topByVolume) {
+			for(String exp: getExpiryMonths(sym)) {
+				
 				String[] year_month = exp.split("-");
 				String key = sym + ".chain." + exp;
 

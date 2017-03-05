@@ -31,7 +31,7 @@ public class CloudantDAO {
 		docIndex = db.getAllDocsRequestBuilder().build().getResponse().getIdsAndRevs();
 	}
 	
-	private JsonNode config = new ObjectMapper().readTree(getClass().getClassLoader().getResourceAsStream("/config.json")).get(getClass().getSimpleName());
+	private JsonNode config = new ObjectMapper().readTree(getClass().getClassLoader().getResourceAsStream("config.json")).get(getClass().getSimpleName());
 
 	private final String CLOUDANT_PASSWORD = config.get("CLOUDANT_PASSWORD").asText();
 
