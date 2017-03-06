@@ -41,7 +41,11 @@ public class WebDashboard extends HttpServlet {
 
 		double spreadPct;
 
+		double yield;
+
 		double aYield;
+
+		double chgClose;
 
 		public String getCompanyName() {
 			return companyName;
@@ -94,6 +98,14 @@ public class WebDashboard extends HttpServlet {
 		public double getaYield() {
 			return aYield;
 		}
+
+		public double getYield() {
+			return yield;
+		}
+
+		public double getChgClose() {
+			return chgClose;
+		}
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -110,6 +122,7 @@ public class WebDashboard extends HttpServlet {
 					flat.symbol = item.getStock().getProduct().getSymbol();
 					flat.totalVolume = item.getStock().getIntraday().getTotalVolume();
 					flat.lastTrade = item.getStock().getIntraday().getLastTrade();
+					flat.chgClose = item.getStock().getIntraday().getChgClose();
 					flat.chgClosePrcn = item.getStock().getIntraday().getChgClosePrcn();
 					flat.expiration = String.format("%04d-%02d-%02d", opt.getProduct().getExpirationYear(),
 							opt.getProduct().getExpirationMonth(), opt.getProduct().getExpirationDay());
@@ -120,6 +133,7 @@ public class WebDashboard extends HttpServlet {
 					flat.optionVolume = opt.getIntraday().getTotalVolume();
 					flat.spreadPct = (opt.getIntraday().getAsk() - opt.getIntraday().getBid())
 							/ item.getStock().getIntraday().getLastTrade() * 100.0;
+					flat.yield = 100.0 * opt.getIntraday().getBid() / item.getStock().getIntraday().getLastTrade();
 					flat.aYield = annualized(item, opt);
 					flatList.add(flat);
 				}

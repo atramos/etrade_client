@@ -15,17 +15,18 @@
 <thead>
   <tr>
     <th class="table-filterable">Stock</th>
-    <th>Volume</th>
-    <th>Last</th>
-    <th>Change%</th>
+    <th class="table-sortable table-sortable:numeric">Volume</th>
+    <th class="table-sortable:numeric">Last</th>
+    <th class="table-sortable:numeric">Change%</th>
     <th class="table-filterable">Expiry</th>
     <th>Strike</th>
     <th class="table-filterable">Type</th>
     <th>Opt.Bid</th>
     <th>Opt.Ask</th>
-    <th>Option Volume</th>
-    <th class="table-filterable table-sortable:numeric">(B-A)/L</th>
-    <th class="table-filterable table-sortable:numeric">Ann.Yield</th>
+    <th class="table-sortable:numeric">Option Volume</th>
+    <th class="table-sortable:numeric">(A-B)/P</th>
+    <th class="table-sortable:numeric">Yield</th>
+    <th class="table-sortable:numeric">Ann.Yield</th>
   </tr>
 </thead>
 <tbody>
@@ -34,7 +35,7 @@
       <td><a href="#" data-toggle="tooltip" title="${item.companyName}">${item.symbol}</a></td>
       <td><fmt:formatNumber pattern="#,##0" value="${item.totalVolume}"/></td>
       <td><fmt:formatNumber pattern="#,##0.00" value="${item.lastTrade}"/></td>
-      <td>${item.chgClosePrcn}</td>
+      <td>${item.chgClosePrcn}%</td>
       <td>${item.expiration}</td>
       <td>${item.strikePrice}</td>
       <td>${item.optionType}</td>
@@ -42,6 +43,7 @@
       <td><fmt:formatNumber pattern="#,##0.00" value="${item.optionAsk}"/></td>
       <td><fmt:formatNumber pattern="#,##0" value="${item.optionVolume}"/></td>
       <td><fmt:formatNumber pattern="#,##0.000" value="${item.spreadPct}"/>%</td>
+      <td><fmt:formatNumber pattern="#,##0.0" value="${item.yield}"/>%</td>
       <td><fmt:formatNumber pattern="#,##0.0" value="${item.aYield}"/>%</td>
     </tr>
   </c:forEach>

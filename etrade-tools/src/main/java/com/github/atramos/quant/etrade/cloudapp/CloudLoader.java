@@ -86,12 +86,17 @@ public class CloudLoader {
 		}
 	}
 
-	private List<String> getExpiryMonths(String stock) throws IOException, ETWSException {
+	private List<String> getExpiryMonths(String stock) {
 		ClientRequest request = apiClient.newClientRequest();
 		MarketClient client = new MarketClient(request);
 		OptionExpireDateGetRequest req = new OptionExpireDateGetRequest();
 		req.setUnderlier(stock);
-		OptionExpireDateGetResponse response = client.getExpiryDates(req);
+		OptionExpireDateGetResponse response;
+		try {
+			response = client.getExpiryDates(req);
+		} catch (IOException | ETWSException e) {
+			throw new RuntimeException(e);
+		}
 		return response.getExpireDates().stream()
 				.map(date -> date.getYear() + "-" + date.getMonth())
 				.collect(Collectors.toList());
@@ -135,19 +140,23 @@ public class CloudLoader {
 
 	private void downloadAll() throws JsonProcessingException, IOException, ETWSException {
 		
-		//da.deleteFromView("removal_q");
+		boolean reset = true;
+		
+		if(reset) da.deleteFromView("removal_q");
 		
 		List<String> stocks = universe.listStocks();
 		Set<String> stopList = da.getDocIndex().keySet();
 		
-		stocks.removeAll(stopList);
+		stocks.add("SPY");
+		
+		if(!reset) stocks.removeAll(stopList);
 		this.getQuotes(stocks);
 		
 		List<String> topByVolume = da.getTopByVolume(500);
 		logger.info("Top Stocks = " + topByVolume);
 		
 		for(String sym: topByVolume) {
-			for(String exp: getExpiryMonths(sym)) {
+			for(String exp: LocalCache.get(sym + ".expiry", () -> getExpiryMonths(sym))) {
 				
 				String[] year_month = exp.split("-");
 				String key = sym + ".chain." + exp;
@@ -158,7 +167,7 @@ public class CloudLoader {
 			}
 		}
 			
-		List<String> queue = da.getOptionQuoteQueue();
+		List<String> queue = da.getOptionQuoteQueue(); // option chains are always cached
 		
 		this.getOptionQuotes(queue);
 	}
