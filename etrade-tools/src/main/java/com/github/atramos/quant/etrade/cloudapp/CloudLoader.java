@@ -108,7 +108,7 @@ public class CloudLoader {
 		MarketClient client = new MarketClient(request);
 		for(List<String> part : ListUtils.partition(symbols, 25)) {
 			logger.info(part.toString());
-			QuoteResponse response = client.getQuote(new ArrayList<String>(part), Boolean.FALSE, DetailFlag.INTRADAY);
+			QuoteResponse response = client.getQuote(new ArrayList<String>(part), Boolean.FALSE, DetailFlag.ALL);
 			da.store(response.getQuoteData(), quote -> quote.getProduct().getSymbol(), true);
 		}
 	}
@@ -140,7 +140,7 @@ public class CloudLoader {
 
 	private void downloadAll() throws JsonProcessingException, IOException, ETWSException {
 		
-		boolean reset = true;
+		boolean reset = false;
 		
 		if(reset) da.deleteFromView("removal_q");
 		

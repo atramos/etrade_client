@@ -99,7 +99,6 @@ public class CloudantDAO {
 		
 		for(Row<ComplexKey, QueueStock> row: rows) {
 			if(row.getValue().getSymbol() == null) continue;
-			
 			String underlying = row.getValue().getSymbol().toUpperCase();
 			
 			if(row.getValue().getChains().size() > 0) {
