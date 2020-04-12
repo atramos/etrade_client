@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.logging.Logger;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.atramos.quant.etrade.cloudapp.DashboardModel.Value;

@@ -2,13 +2,16 @@ package com.github.atramos.etrade_tools;
 
 import java.awt.Desktop;
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
 import com.etrade.etws.account.Account;
 import com.etrade.etws.account.AccountListResponse;
@@ -35,8 +38,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
  * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Code-Tutorial
  * 
  * Sandbox tokens:
- * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Documentation-
- * DeveloperGuides-Authorization
+ * https://us.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Documentation-DeveloperGuides-Authorization
  * 
  * @author atram
  *
@@ -44,10 +46,22 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 public class Tutorial {
 	private IOAuthClient oauth_client = OAuthClientImpl.getInstance();
 
-	private String oauth_consumer_key = System.getenv("CONSUMER_KEY");
+	final private String oauth_consumer_key;
 
-	private String oauth_consumer_secret = System.getenv("CONSUMER_SECRET");
-
+	final private String oauth_consumer_secret;
+	
+	public Tutorial() {
+		try {
+			Properties prop = new Properties();
+			final InputStream is = new FileInputStream("src/main/resources/sandbox.properties");
+			prop.load(is);
+			oauth_consumer_key = prop.getProperty("CONSUMER_KEY");
+			oauth_consumer_secret = prop.getProperty("CONSUMER_SECRET");
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
 	private String oauth_access_token = null;
 
 	private String oauth_access_token_secret = null;

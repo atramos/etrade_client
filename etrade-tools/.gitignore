@@ -1,2 +1,5 @@
 /target/
 /cookie.txt
+/.settings/
+/.classpath
+/.project
