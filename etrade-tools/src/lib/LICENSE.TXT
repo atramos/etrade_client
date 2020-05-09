@@ -1,2 +1,0 @@
-Downloaded from https://cdn.etrade.net/1/20170112.0/static_devportal/static/downloads/All_Jar.zip
-via URL https://developer.etrade.com/ctnt/dev-portal/getContent?contentUri=V0_Code-SDKGuides-Java
