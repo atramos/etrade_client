@@ -16,13 +16,21 @@ class Market:
         self.session = session
         self.base_url = base_url
 
-    def chains(self, symbol):
+    def chains(self, symbol, config):
         
         logger.debug("Retrieve chains for symbol = %s", symbol)
-        
-        url = self.base_url + "/v1/market/optionexpiredate?symbol=" + symbol
+
+        #url = self.base_url + "/v1/market/optionchains.json?symbol=" + symbol
+        #url = self.base_url + "/v1/market/optionchains.json"
+        url = self.base_url + "/v1/market/optionexpiredate.json"
         logger.debug(url)
-        response = self.session.get(url)
+        print(url)
+        params = {"overrideSymbolCount": "true", "symbol": symbol}
+        headers = {"consumerkey": config["DEFAULT"]["CONSUMER_KEY"]}
+        print(headers)
+        response = self.session.get(url, header_auth=True, params=params, headers=headers)
+
+        #response = self.session.get(url)
         
         if response is not None and response.status_code == 200:
 
@@ -32,6 +40,10 @@ class Market:
             return response.json()
         
         else:
+            print(dir(response))
+            print(response.reason)
+            print(response.raw.data)
+            print(response.text)
             logger.debug("Response Body: %s", response)
             raise Exception("Error: Quote API service error")
         

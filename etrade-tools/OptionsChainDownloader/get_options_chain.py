@@ -47,6 +47,7 @@ def oauth():
                                   request_token_secret,
                                   params={"oauth_verifier": text_code})
 
+    print("base_url = " + base_url)
     return(session, base_url)
 
 
@@ -60,7 +61,7 @@ quotes = market.quotes(sys.argv[2])
 
 for stock in quotes:
     symbol = stock['Product']['symbol']
-    chain = market.chains(symbol)
+    chain = market.chains(symbol, config)
     print(json.dumps(chain, indent=4))
 
 print(json.dumps(quote, indent=4))
