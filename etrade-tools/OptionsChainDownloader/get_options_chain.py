@@ -47,7 +47,6 @@ def oauth():
                                   request_token_secret,
                                   params={"oauth_verifier": text_code})
 
-    print("base_url = " + base_url)
     return(session, base_url)
 
 
@@ -56,12 +55,24 @@ config = configparser.ConfigParser()
 config.read(sys.argv[1])
 (session, base_url) = oauth()
 market = Market(session, base_url)
-
 quotes = market.quotes(sys.argv[2])
 
 for stock in quotes:
     symbol = stock['Product']['symbol']
-    chain = market.chains(symbol, config)
-    print(json.dumps(chain, indent=4))
-
-print(json.dumps(quote, indent=4))
+    
+    chainDates = market.chainDates(symbol)
+    
+    chains = [market.chains(symbol, {
+            'expiryYear': chainDate['year'],
+            'expiryMonth': chainDate['month'],
+            'expiryDay': chainDate['day'],
+            'includeWeekly': 'true',
+            'priceType': 'ALL'
+        }) for chainDate in chainDates]
+        
+    data = { 'stock': stock, 'options': chains, 'optionsDates': chainDates }
+    
+    with open("sample_data/" + symbol + ".json", "a") as f:
+        f.write(json.dumps(data, indent=4))
+        print('Wrote: ' + symbol)
+        
